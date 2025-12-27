@@ -35,6 +35,20 @@ class TemplateEditorPage extends ConsumerWidget {
                     subtitle: Text(
                       '${te.targetSets} sets x ${te.targetReps} reps',
                     ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        ref
+                            .read(databaseProvider)
+                            .deleteTemplateExercise(te.id);
+                      },
+                    ),
+                    onTap: () => _showEditExerciseInTemplateDialog(
+                      context,
+                      ref,
+                      te,
+                      exerciseName,
+                    ),
                   );
                 },
               );
@@ -50,6 +64,61 @@ class TemplateEditorPage extends ConsumerWidget {
         onPressed: () =>
             _showAddExerciseToTemplateDialog(context, ref, allExercisesAsync),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showEditExerciseInTemplateDialog(
+    BuildContext context,
+    WidgetRef ref,
+    TemplateExercise te,
+    String exerciseName,
+  ) {
+    final setsController = TextEditingController(
+      text: te.targetSets.toString(),
+    );
+    final repsController = TextEditingController(
+      text: te.targetReps.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit $exerciseName'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: setsController,
+              decoration: const InputDecoration(labelText: 'Sets'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: repsController,
+              decoration: const InputDecoration(labelText: 'Reps'),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref
+                  .read(databaseProvider)
+                  .updateTemplateExercise(
+                    id: te.id,
+                    sets: int.tryParse(setsController.text) ?? te.targetSets,
+                    reps: int.tryParse(repsController.text) ?? te.targetReps,
+                  );
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

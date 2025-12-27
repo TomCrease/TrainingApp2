@@ -24,7 +24,9 @@ class AppDatabase extends _$AppDatabase {
   int get schemaVersion => 1;
 
   // Exercises
-  Stream<List<Exercise>> watchExercises() => select(exercises).watch();
+  Stream<List<Exercise>> watchExercises() => (select(
+    exercises,
+  )..orderBy([(t) => OrderingTerm(expression: t.name)])).watch();
   Future<int> addExercise(String name) =>
       into(exercises).insert(ExercisesCompanion.insert(name: name));
   Future<void> deleteExercise(int id) =>
@@ -59,6 +61,23 @@ class AppDatabase extends _$AppDatabase {
         orderIndex: orderIndex,
       ),
     );
+  }
+
+  Future<void> updateTemplateExercise({
+    required int id,
+    required int sets,
+    required int reps,
+  }) {
+    return (update(templateExercises)..where((t) => t.id.equals(id))).write(
+      TemplateExercisesCompanion(
+        targetSets: Value(sets),
+        targetReps: Value(reps),
+      ),
+    );
+  }
+
+  Future<void> deleteTemplateExercise(int id) {
+    return (delete(templateExercises)..where((t) => t.id.equals(id))).go();
   }
 
   // Sessions
@@ -141,6 +160,14 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteSet(int setId) {
     return (delete(sessionSets)..where((t) => t.id.equals(setId))).go();
+  }
+
+  Future<void> deleteExerciseFromSession(int sessionId, int exerciseId) {
+    return (delete(sessionSets)..where(
+          (t) =>
+              t.sessionId.equals(sessionId) & t.exerciseId.equals(exerciseId),
+        ))
+        .go();
   }
 
   // History with Templates

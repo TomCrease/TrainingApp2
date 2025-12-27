@@ -53,9 +53,28 @@ class ActiveWorkoutPage extends ConsumerWidget {
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            exercise.name,
-                            style: Theme.of(context).textTheme.titleLarge,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                exercise.name,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () {
+                                  ref
+                                      .read(databaseProvider)
+                                      .deleteExerciseFromSession(
+                                        sessionId,
+                                        exerciseId,
+                                      );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                         ...exerciseSets.map((s) => SetRow(sessionSet: s)),
