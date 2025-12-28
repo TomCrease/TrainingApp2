@@ -21,7 +21,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(workoutSessions, workoutSessions.workoutName);
+      }
+    },
+  );
 
   // Exercises
   Stream<List<Exercise>> watchExercises() => (select(
@@ -82,9 +91,18 @@ class AppDatabase extends _$AppDatabase {
 
   // Sessions
   Future<int> startSession(int? templateId) async {
+    String? workoutName;
+    if (templateId != null) {
+      final template = await (select(
+        workoutTemplates,
+      )..where((t) => t.id.equals(templateId))).getSingle();
+      workoutName = template.name;
+    }
+
     final sessionId = await into(workoutSessions).insert(
       WorkoutSessionsCompanion.insert(
         templateId: Value(templateId),
+        workoutName: Value(workoutName),
         startTime: DateTime.now(),
       ),
     );
@@ -196,6 +214,13 @@ class AppDatabase extends _$AppDatabase {
     await (delete(workoutSessions)..where((t) => t.id.equals(sessionId))).go();
   }
 
+  Future<void> deleteAllHistory() async {
+    await transaction(() async {
+      await delete(sessionSets).go();
+      await delete(workoutSessions).go();
+    });
+  }
+
   Future<void> deleteTemplate(int templateId) async {
     // Delete associated exercises first
     await (delete(
@@ -211,10 +236,7 @@ class AppDatabase extends _$AppDatabase {
     final result =
         await (select(sessionSets)
               ..where(
-                (t) =>
-                    t.exerciseId.equals(exerciseId) &
-                    t.reps.equals(reps) &
-                    t.isCompleted.equals(true),
+                (t) => t.exerciseId.equals(exerciseId) & t.reps.equals(reps),
               )
               ..orderBy([
                 (t) =>
@@ -223,6 +245,123 @@ class AppDatabase extends _$AppDatabase {
               ..limit(1))
             .getSingleOrNull();
     return result?.weight;
+  }
+
+  // Export/Import
+  Future<List<Map<String, dynamic>>> getExportData() async {
+    final query = select(sessionSets).join([
+      innerJoin(
+        workoutSessions,
+        workoutSessions.id.equalsExp(sessionSets.sessionId),
+      ),
+      innerJoin(exercises, exercises.id.equalsExp(sessionSets.exerciseId)),
+      leftOuterJoin(
+        workoutTemplates,
+        workoutTemplates.id.equalsExp(workoutSessions.templateId),
+      ),
+    ]);
+
+    final results = await query.get();
+    return results.map((row) {
+      final set = row.readTable(sessionSets);
+      final session = row.readTable(workoutSessions);
+      final exercise = row.readTable(exercises);
+      final template = row.readTableOrNull(workoutTemplates);
+
+      final displayName =
+          (session.workoutName != null && session.workoutName!.isNotEmpty)
+          ? session.workoutName!
+          : (template?.name ?? 'Workout');
+
+      return {
+        'date': session.startTime.toIso8601String(),
+        'workoutName': displayName,
+        'exercise': exercise.name,
+        'weight': set.weight,
+        'reps': set.reps,
+      };
+    }).toList();
+  }
+
+  Future<void> importWorkoutData(List<List<dynamic>> csvData) async {
+    if (csvData.isEmpty) return;
+
+    // Headers: date, workoutName, exercise, weight, reps
+    final headers = csvData[0].map((e) => e.toString().toLowerCase()).toList();
+    final dateIdx = headers.indexOf('date');
+    final workoutNameIdx = headers.indexOf('workoutname');
+    final exerciseIdx = headers.indexOf('exercise');
+    final weightIdx = headers.indexOf('weight');
+    final repsIdx = headers.indexOf('reps');
+
+    if (dateIdx == -1 ||
+        exerciseIdx == -1 ||
+        weightIdx == -1 ||
+        repsIdx == -1) {
+      throw Exception('Invalid CSV format. Missing required headers.');
+    }
+
+    final allExercises = await select(exercises).get();
+    final exerciseMap = {
+      for (var e in allExercises) e.name.toLowerCase(): e.id,
+    };
+
+    await transaction(() async {
+      // Group by date to create sessions
+      final Map<String, int> sessionMap = {};
+
+      for (var i = 1; i < csvData.length; i++) {
+        final row = csvData[i];
+        if (row.length < 4) continue;
+
+        final dateStr = row[dateIdx].toString();
+        final workoutName = workoutNameIdx != -1
+            ? row[workoutNameIdx].toString()
+            : null;
+        final exerciseName = row[exerciseIdx].toString();
+        final weight = double.tryParse(row[weightIdx].toString()) ?? 0.0;
+        final reps = int.tryParse(row[repsIdx].toString()) ?? 0;
+
+        // Ensure exercise exists
+        int exerciseId;
+        if (exerciseMap.containsKey(exerciseName.toLowerCase())) {
+          exerciseId = exerciseMap[exerciseName.toLowerCase()]!;
+        } else {
+          exerciseId = await into(
+            exercises,
+          ).insert(ExercisesCompanion.insert(name: exerciseName));
+          exerciseMap[exerciseName.toLowerCase()] = exerciseId;
+        }
+
+        // Ensure session exists
+        int sessionId;
+        if (sessionMap.containsKey(dateStr)) {
+          sessionId = sessionMap[dateStr]!;
+        } else {
+          final startTime = DateTime.tryParse(dateStr) ?? DateTime.now();
+          sessionId = await into(workoutSessions).insert(
+            WorkoutSessionsCompanion.insert(
+              workoutName: Value(workoutName),
+              startTime: startTime,
+              endTime: Value(startTime.add(const Duration(hours: 1))),
+            ),
+          );
+          sessionMap[dateStr] = sessionId;
+        }
+
+        // Insert set
+        await into(sessionSets).insert(
+          SessionSetsCompanion.insert(
+            sessionId: sessionId,
+            exerciseId: exerciseId,
+            weight: weight,
+            reps: reps,
+            isCompleted: const Value(true),
+            orderIndex: 0, // Simplified
+          ),
+        );
+      }
+    });
   }
 }
 

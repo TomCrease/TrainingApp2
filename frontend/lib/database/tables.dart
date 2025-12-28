@@ -23,6 +23,7 @@ class WorkoutSessions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get templateId =>
       integer().nullable().references(WorkoutTemplates, #id)();
+  TextColumn get workoutName => text().nullable()();
   DateTimeColumn get startTime => dateTime()();
   DateTimeColumn get endTime => dateTime().nullable()();
 }

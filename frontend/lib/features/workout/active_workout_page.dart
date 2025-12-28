@@ -161,12 +161,6 @@ class _SetRowState extends ConsumerState<SetRow> {
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
         children: [
-          Checkbox(
-            value: widget.sessionSet.isCompleted,
-            onChanged: (val) => ref
-                .read(databaseProvider)
-                .updateSet(widget.sessionSet.id, isCompleted: val),
-          ),
           SizedBox(
             width: 80,
             child: TextField(

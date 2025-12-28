@@ -5,6 +5,7 @@ import 'features/templates/template_list_page.dart';
 import 'features/history/history_page.dart';
 import 'features/workout/template_selection_page.dart';
 import 'features/workout/max_lifts_dialog.dart';
+import 'features/settings/settings_page.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -40,7 +41,21 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Exercise Tracker')),
+      appBar: AppBar(
+        title: const Text('Exercise Tracker'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
+      ),
+
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

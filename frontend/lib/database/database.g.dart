@@ -838,6 +838,17 @@ class $WorkoutSessionsTable extends WorkoutSessions
       'REFERENCES workout_templates (id)',
     ),
   );
+  static const VerificationMeta _workoutNameMeta = const VerificationMeta(
+    'workoutName',
+  );
+  @override
+  late final GeneratedColumn<String> workoutName = GeneratedColumn<String>(
+    'workout_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _startTimeMeta = const VerificationMeta(
     'startTime',
   );
@@ -861,7 +872,13 @@ class $WorkoutSessionsTable extends WorkoutSessions
     requiredDuringInsert: false,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, templateId, startTime, endTime];
+  List<GeneratedColumn> get $columns => [
+    id,
+    templateId,
+    workoutName,
+    startTime,
+    endTime,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -881,6 +898,15 @@ class $WorkoutSessionsTable extends WorkoutSessions
       context.handle(
         _templateIdMeta,
         templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
+      );
+    }
+    if (data.containsKey('workout_name')) {
+      context.handle(
+        _workoutNameMeta,
+        workoutName.isAcceptableOrUnknown(
+          data['workout_name']!,
+          _workoutNameMeta,
+        ),
       );
     }
     if (data.containsKey('start_time')) {
@@ -914,6 +940,10 @@ class $WorkoutSessionsTable extends WorkoutSessions
         DriftSqlType.int,
         data['${effectivePrefix}template_id'],
       ),
+      workoutName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workout_name'],
+      ),
       startTime: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}start_time'],
@@ -934,11 +964,13 @@ class $WorkoutSessionsTable extends WorkoutSessions
 class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
   final int id;
   final int? templateId;
+  final String? workoutName;
   final DateTime startTime;
   final DateTime? endTime;
   const WorkoutSession({
     required this.id,
     this.templateId,
+    this.workoutName,
     required this.startTime,
     this.endTime,
   });
@@ -948,6 +980,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || templateId != null) {
       map['template_id'] = Variable<int>(templateId);
+    }
+    if (!nullToAbsent || workoutName != null) {
+      map['workout_name'] = Variable<String>(workoutName);
     }
     map['start_time'] = Variable<DateTime>(startTime);
     if (!nullToAbsent || endTime != null) {
@@ -962,6 +997,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       templateId: templateId == null && nullToAbsent
           ? const Value.absent()
           : Value(templateId),
+      workoutName: workoutName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workoutName),
       startTime: Value(startTime),
       endTime: endTime == null && nullToAbsent
           ? const Value.absent()
@@ -977,6 +1015,7 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     return WorkoutSession(
       id: serializer.fromJson<int>(json['id']),
       templateId: serializer.fromJson<int?>(json['templateId']),
+      workoutName: serializer.fromJson<String?>(json['workoutName']),
       startTime: serializer.fromJson<DateTime>(json['startTime']),
       endTime: serializer.fromJson<DateTime?>(json['endTime']),
     );
@@ -987,6 +1026,7 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'templateId': serializer.toJson<int?>(templateId),
+      'workoutName': serializer.toJson<String?>(workoutName),
       'startTime': serializer.toJson<DateTime>(startTime),
       'endTime': serializer.toJson<DateTime?>(endTime),
     };
@@ -995,11 +1035,13 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
   WorkoutSession copyWith({
     int? id,
     Value<int?> templateId = const Value.absent(),
+    Value<String?> workoutName = const Value.absent(),
     DateTime? startTime,
     Value<DateTime?> endTime = const Value.absent(),
   }) => WorkoutSession(
     id: id ?? this.id,
     templateId: templateId.present ? templateId.value : this.templateId,
+    workoutName: workoutName.present ? workoutName.value : this.workoutName,
     startTime: startTime ?? this.startTime,
     endTime: endTime.present ? endTime.value : this.endTime,
   );
@@ -1009,6 +1051,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       templateId: data.templateId.present
           ? data.templateId.value
           : this.templateId,
+      workoutName: data.workoutName.present
+          ? data.workoutName.value
+          : this.workoutName,
       startTime: data.startTime.present ? data.startTime.value : this.startTime,
       endTime: data.endTime.present ? data.endTime.value : this.endTime,
     );
@@ -1019,6 +1064,7 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     return (StringBuffer('WorkoutSession(')
           ..write('id: $id, ')
           ..write('templateId: $templateId, ')
+          ..write('workoutName: $workoutName, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime')
           ..write(')'))
@@ -1026,13 +1072,15 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
   }
 
   @override
-  int get hashCode => Object.hash(id, templateId, startTime, endTime);
+  int get hashCode =>
+      Object.hash(id, templateId, workoutName, startTime, endTime);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is WorkoutSession &&
           other.id == this.id &&
           other.templateId == this.templateId &&
+          other.workoutName == this.workoutName &&
           other.startTime == this.startTime &&
           other.endTime == this.endTime);
 }
@@ -1040,29 +1088,34 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
 class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
   final Value<int> id;
   final Value<int?> templateId;
+  final Value<String?> workoutName;
   final Value<DateTime> startTime;
   final Value<DateTime?> endTime;
   const WorkoutSessionsCompanion({
     this.id = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.workoutName = const Value.absent(),
     this.startTime = const Value.absent(),
     this.endTime = const Value.absent(),
   });
   WorkoutSessionsCompanion.insert({
     this.id = const Value.absent(),
     this.templateId = const Value.absent(),
+    this.workoutName = const Value.absent(),
     required DateTime startTime,
     this.endTime = const Value.absent(),
   }) : startTime = Value(startTime);
   static Insertable<WorkoutSession> custom({
     Expression<int>? id,
     Expression<int>? templateId,
+    Expression<String>? workoutName,
     Expression<DateTime>? startTime,
     Expression<DateTime>? endTime,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (templateId != null) 'template_id': templateId,
+      if (workoutName != null) 'workout_name': workoutName,
       if (startTime != null) 'start_time': startTime,
       if (endTime != null) 'end_time': endTime,
     });
@@ -1071,12 +1124,14 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
   WorkoutSessionsCompanion copyWith({
     Value<int>? id,
     Value<int?>? templateId,
+    Value<String?>? workoutName,
     Value<DateTime>? startTime,
     Value<DateTime?>? endTime,
   }) {
     return WorkoutSessionsCompanion(
       id: id ?? this.id,
       templateId: templateId ?? this.templateId,
+      workoutName: workoutName ?? this.workoutName,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
     );
@@ -1090,6 +1145,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     }
     if (templateId.present) {
       map['template_id'] = Variable<int>(templateId.value);
+    }
+    if (workoutName.present) {
+      map['workout_name'] = Variable<String>(workoutName.value);
     }
     if (startTime.present) {
       map['start_time'] = Variable<DateTime>(startTime.value);
@@ -1105,6 +1163,7 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     return (StringBuffer('WorkoutSessionsCompanion(')
           ..write('id: $id, ')
           ..write('templateId: $templateId, ')
+          ..write('workoutName: $workoutName, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime')
           ..write(')'))
@@ -2728,6 +2787,7 @@ typedef $$WorkoutSessionsTableCreateCompanionBuilder =
     WorkoutSessionsCompanion Function({
       Value<int> id,
       Value<int?> templateId,
+      Value<String?> workoutName,
       required DateTime startTime,
       Value<DateTime?> endTime,
     });
@@ -2735,6 +2795,7 @@ typedef $$WorkoutSessionsTableUpdateCompanionBuilder =
     WorkoutSessionsCompanion Function({
       Value<int> id,
       Value<int?> templateId,
+      Value<String?> workoutName,
       Value<DateTime> startTime,
       Value<DateTime?> endTime,
     });
@@ -2803,6 +2864,11 @@ class $$WorkoutSessionsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workoutName => $composableBuilder(
+    column: $table.workoutName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2879,6 +2945,11 @@ class $$WorkoutSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get workoutName => $composableBuilder(
+    column: $table.workoutName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get startTime => $composableBuilder(
     column: $table.startTime,
     builder: (column) => ColumnOrderings(column),
@@ -2924,6 +2995,11 @@ class $$WorkoutSessionsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get workoutName => $composableBuilder(
+    column: $table.workoutName,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get startTime =>
       $composableBuilder(column: $table.startTime, builder: (column) => column);
@@ -3012,11 +3088,13 @@ class $$WorkoutSessionsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int?> templateId = const Value.absent(),
+                Value<String?> workoutName = const Value.absent(),
                 Value<DateTime> startTime = const Value.absent(),
                 Value<DateTime?> endTime = const Value.absent(),
               }) => WorkoutSessionsCompanion(
                 id: id,
                 templateId: templateId,
+                workoutName: workoutName,
                 startTime: startTime,
                 endTime: endTime,
               ),
@@ -3024,11 +3102,13 @@ class $$WorkoutSessionsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int?> templateId = const Value.absent(),
+                Value<String?> workoutName = const Value.absent(),
                 required DateTime startTime,
                 Value<DateTime?> endTime = const Value.absent(),
               }) => WorkoutSessionsCompanion.insert(
                 id: id,
                 templateId: templateId,
+                workoutName: workoutName,
                 startTime: startTime,
                 endTime: endTime,
               ),
